@@ -205,18 +205,18 @@ func main() {
 		Prefix: "xAttrFS",
 	})
 	slog.D("using database `%s'", dbFilename)
-	_db, err := bolt.Open(dbFilename, 0600, nil)
-	db = _db
+	var err error
+	db, err = bolt.Open(dbFilename, 0600, nil)
 	if err != nil {
-		slog.P("failed to open db: `%s'", err)
+		slog.P("failed to open database at `%s': `%s'", err)
 		os.Exit(1)
 	}
 
 	slog.D("using underlying directory `%s'", xattrlessDirectory)
 	slog.D("mounting on `%s'", mountpoint)
 	nfs := pathfs.NewPathNodeFs(&xattrFs{FileSystem: pathfs.NewLoopbackFileSystem(xattrlessDirectory)}, nil)
-	conn := nodefs.NewFileSystemConnector(nfs.Root(), nil)
-	server, err := fuse.NewServer(conn.RawFS(), mountpoint, &fuse.MountOptions{
+	con := nodefs.NewFileSystemConnector(nfs.Root(), nil)
+	srv, err := fuse.NewServer(con.RawFS(), mountpoint, &fuse.MountOptions{
 		AllowOther: true,
 	})
 	if err != nil {
@@ -228,11 +228,11 @@ func main() {
 	signal.Notify(c, os.Interrupt)
 	go func() {
 		<-c
-		server.Unmount()
+		srv.Unmount()
 	}()
 
 	slog.D("now handling filesystem requests")
-	server.Serve()
+	srv.Serve()
 	slog.D("unmounting, and shutting down db")
 	db.Close()
 }
