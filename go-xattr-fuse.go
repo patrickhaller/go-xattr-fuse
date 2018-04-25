@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -203,25 +204,35 @@ func main() {
 		Debug:  os.Getenv("DEBUG") != "",
 		Prefix: "xAttrFS",
 	})
-	slog.P("using database `%s'", dbFilename)
+	slog.D("using database `%s'", dbFilename)
 	_db, err := bolt.Open(dbFilename, 0600, nil)
 	db = _db
 	if err != nil {
 		slog.P("failed to open db: `%s'", err)
 		os.Exit(1)
 	}
-	slog.P("using underlying directory `%s'", xattrlessDirectory)
-	slog.P("mounting on `%s'", mountpoint)
+
+	slog.D("using underlying directory `%s'", xattrlessDirectory)
+	slog.D("mounting on `%s'", mountpoint)
 	nfs := pathfs.NewPathNodeFs(&xattrFs{FileSystem: pathfs.NewLoopbackFileSystem(xattrlessDirectory)}, nil)
 	conn := nodefs.NewFileSystemConnector(nfs.Root(), nil)
 	server, err := fuse.NewServer(conn.RawFS(), mountpoint, &fuse.MountOptions{
 		AllowOther: true,
 	})
 	if err != nil {
-		slog.P("mount failed: %v\n", err)
+		slog.P("failed to mount `%s' on `%s': %v\n", xattrlessDirectory, mountpoint, err)
 		os.Exit(1)
 	}
+
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		<-c
+		server.Unmount()
+	}()
+
+	slog.D("now handling filesystem requests")
 	server.Serve()
-	slog.P("unmounting, and shutting down db")
+	slog.D("unmounting, and shutting down db")
 	db.Close()
 }
