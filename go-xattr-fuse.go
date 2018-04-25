@@ -100,73 +100,91 @@ func (x *xattrFs) RemoveXAttr(name string, attr string, context *fuse.Context) f
 
 // Begin overlay redirect functions
 func (x *xattrFs) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
+	slog.D(name)
 	return x.FileSystem.GetAttr(name, context)
 }
 func (x *xattrFs) Readlink(name string, context *fuse.Context) (string, fuse.Status) {
+	slog.D(name)
 	return x.FileSystem.Readlink(name, context)
 }
 
 func (x *xattrFs) Mknod(name string, mode uint32, dev uint32, context *fuse.Context) fuse.Status {
+	slog.D(name)
 	return x.FileSystem.Mknod(name, mode, dev, context)
 }
 
 func (x *xattrFs) Mkdir(name string, mode uint32, context *fuse.Context) fuse.Status {
+	slog.D(name)
 	return x.FileSystem.Mkdir(name, mode, context)
 }
 
 func (x *xattrFs) Unlink(name string, context *fuse.Context) (code fuse.Status) {
+	slog.D(name)
 	return x.FileSystem.Unlink(name, context)
 }
 
 func (x *xattrFs) Rmdir(name string, context *fuse.Context) (code fuse.Status) {
+	slog.D(name)
 	return x.FileSystem.Rmdir(name, context)
 }
 
 func (x *xattrFs) Symlink(value string, linkName string, context *fuse.Context) (code fuse.Status) {
+	slog.D("%s -> %s", linkName, value)
 	return x.FileSystem.Symlink(value, linkName, context)
 }
 
 func (x *xattrFs) Rename(oldName string, newName string, context *fuse.Context) (code fuse.Status) {
+	slog.D("%s -> %s", oldName, newName)
 	return x.FileSystem.Rename(oldName, newName, context)
 }
 
 func (x *xattrFs) Link(oldName string, newName string, context *fuse.Context) (code fuse.Status) {
+	slog.D("%s -> %s", oldName, newName)
 	return x.FileSystem.Link(oldName, newName, context)
 }
 
 func (x *xattrFs) Chmod(name string, mode uint32, context *fuse.Context) (code fuse.Status) {
+	slog.D(name)
 	return x.FileSystem.Chmod(name, mode, context)
 }
 
 func (x *xattrFs) Chown(name string, uid uint32, gid uint32, context *fuse.Context) (code fuse.Status) {
+	slog.D(name)
 	return x.FileSystem.Chown(name, uid, gid, context)
 }
 
 func (x *xattrFs) Truncate(name string, offset uint64, context *fuse.Context) (code fuse.Status) {
+	slog.D(name)
 	return x.FileSystem.Truncate(name, offset, context)
 }
 
 func (x *xattrFs) Open(name string, flags uint32, context *fuse.Context) (file nodefs.File, code fuse.Status) {
+	slog.D(name)
 	return x.FileSystem.Open(name, flags, context)
 }
 
 func (x *xattrFs) OpenDir(name string, context *fuse.Context) (stream []fuse.DirEntry, status fuse.Status) {
+	slog.D(name)
 	return x.FileSystem.OpenDir(name, context)
 }
 
 func (x *xattrFs) Access(name string, mode uint32, context *fuse.Context) (code fuse.Status) {
+	slog.D(name)
 	return x.FileSystem.Access(name, mode, context)
 }
 
 func (x *xattrFs) Create(name string, flags uint32, mode uint32, context *fuse.Context) (file nodefs.File, code fuse.Status) {
+	slog.D(name)
 	return x.FileSystem.Create(name, flags, mode, context)
 }
 
 func (x *xattrFs) Utimens(name string, Atime *time.Time, Mtime *time.Time, context *fuse.Context) (code fuse.Status) {
+	slog.D(name)
 	return x.FileSystem.Utimens(name, Atime, Mtime, context)
 }
 
 func (x *xattrFs) StatFs(name string) *fuse.StatfsOut {
+	slog.D(name)
 	return nil
 }
 
@@ -195,7 +213,10 @@ func main() {
 	slog.P("using underlying directory `%s'", xattrlessDirectory)
 	slog.P("mounting on `%s'", mountpoint)
 	nfs := pathfs.NewPathNodeFs(&xattrFs{FileSystem: pathfs.NewLoopbackFileSystem(xattrlessDirectory)}, nil)
-	server, _, err := nodefs.MountRoot(mountpoint, nfs.Root(), nil)
+	conn := nodefs.NewFileSystemConnector(nfs.Root(), nil)
+	server, err := fuse.NewServer(conn.RawFS(), mountpoint, &fuse.MountOptions{
+		AllowOther: true,
+	})
 	if err != nil {
 		slog.P("mount failed: %v\n", err)
 		os.Exit(1)
