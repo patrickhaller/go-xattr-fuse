@@ -186,7 +186,7 @@ func (x *xattrFs) Utimens(name string, Atime *time.Time, Mtime *time.Time, conte
 
 func (x *xattrFs) StatFs(name string) *fuse.StatfsOut {
 	slog.D(name)
-	return nil
+	return x.FileSystem.StatFs(name)
 }
 
 func main() {
